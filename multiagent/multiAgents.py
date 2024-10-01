@@ -1,5 +1,5 @@
-# multiAgents.py
 # --------------
+# multiAgents.py
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
@@ -18,6 +18,7 @@ import random, util
 
 from game import Agent
 from pacman import GameState
+import math
 
 class ReflexAgent(Agent):
     """
@@ -75,7 +76,18 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        if (manhattanDistance(newGhostStates[0].getPosition(), newPos) < 2) : 
+            print ("GHOST")
+            return -10000
+        food = currentGameState.getFood().asList()
+        closest_food = 10000000
+        for foo in food : 
+            dist = manhattanDistance(newPos, foo)
+            closest_food = min(dist, closest_food)
+        
+        return -closest_food 
+
+        
 
 def scoreEvaluationFunction(currentGameState: GameState):
     """
@@ -136,8 +148,42 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # minvalue function called by the ghosts
+        def min_ghost(gameState: GameState, depth, ghostID) : 
+            if (gameState.isWin() or gameState.isLose() or depth == 0) : 
+                return self.evaluationFunction(gameState)
+            legalActions = gameState.getLegalActions(ghostID)
+            bestValue = math.inf
+            for action in legalActions : 
+                if ghostID == gameState.getNumAgents() - 1:
+                    value = max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1)
+                else:
+                    # Otherwise, move to the next ghost
+                    value = min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1)
+                bestValue = min(bestValue, value)
+            return bestValue
 
+        # maxvalue function called by pacman
+        def max_pacman(gameState: GameState, depth) :
+            if (gameState.isWin() or gameState.isLose() or depth == 0) : 
+                return self.evaluationFunction(gameState)
+            legalActions = gameState.getLegalActions(0)
+            bestValue = -math.inf
+            for action in legalActions : 
+                value = min_ghost(gameState.generateSuccessor(0, action), depth, 1)
+                bestValue = max(bestValue, value)
+            return bestValue
+
+        legalActions = gameState.getLegalActions(0)
+        bestAction = None
+        bestValue = -math.inf
+        for action in legalActions :
+            value = min_ghost(gameState.generateSuccessor(0, action), self.depth, 1)
+            if (value > bestValue) : 
+                bestValue = value
+                bestAction = action
+        return bestAction
+        
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     Your minimax agent with alpha-beta pruning (question 3)

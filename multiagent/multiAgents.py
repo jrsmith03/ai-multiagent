@@ -153,30 +153,26 @@ class MinimaxAgent(MultiAgentSearchAgent):
             if (gameState.isWin() or gameState.isLose() or depth == 0) : 
                 return self.evaluationFunction(gameState)
             legalActions = gameState.getLegalActions(ghostID)
-            bestValue = math.inf
+
+            value = math.inf
             for action in legalActions : 
                 if ghostID == gameState.getNumAgents() - 1:
-                    value = max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1)
+                    value = min(value, max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1))
                 else:
                     # Otherwise, move to the next ghost
-                    # print("move on to the next ghost")
-                    value = min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1)
-                    print("     value for ghost", ghostID, value)
-                bestValue = min(bestValue, value)
-                
-            return bestValue
+                    value = min(value, min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1))
+            return value
 
         # maxvalue function called by pacman
         def max_pacman(gameState: GameState, depth) :
             if (gameState.isWin() or gameState.isLose() or depth == 0) : 
                 return self.evaluationFunction(gameState)
             legalActions = gameState.getLegalActions(0)
-            bestValue = -math.inf
+
+            value = -math.inf
             for action in legalActions : 
-                print("MAX: MINIMIZE THE GHOSTS")
-                value = min_ghost(gameState.generateSuccessor(0, action), depth, 1)
-                bestValue = max(bestValue, value)
-            return bestValue
+                value = max(value, min_ghost(gameState.generateSuccessor(0, action), depth, 1))
+            return value
 
         legalActions = gameState.getLegalActions(0)
         bestAction = None
@@ -198,45 +194,53 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        
-         # minvalue function called by the ghosts
-        def min_ghost(gameState: GameState, depth, ghostID) : 
+                # minvalue function called by the ghosts
+        def min_ghost(gameState: GameState, depth, ghostID, alpha, beta) : 
             if (gameState.isWin() or gameState.isLose() or depth == 0) : 
                 return self.evaluationFunction(gameState)
             legalActions = gameState.getLegalActions(ghostID)
-            bestValue = math.inf
+
+            value = math.inf
             for action in legalActions : 
                 if ghostID == gameState.getNumAgents() - 1:
-                    value = max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1)
-                else:
+                    value = min(value, max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1, alpha, beta))
+                else: 
                     # Otherwise, move to the next ghost
-                    # print("move on to the next ghost")
-                    value = min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1)
-                    print("     value for ghost", ghostID, value)
-                bestValue = min(bestValue, value)
-                
-            return bestValue
+                    value = min(value, min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1, alpha, beta))
+                if value < alpha :
+                    return value
+                beta = min(beta, value)
+            return value
 
         # maxvalue function called by pacman
-        def max_pacman(gameState: GameState, depth) :
+        def max_pacman(gameState: GameState, depth, alpha, beta) :
             if (gameState.isWin() or gameState.isLose() or depth == 0) : 
                 return self.evaluationFunction(gameState)
             legalActions = gameState.getLegalActions(0)
-            bestValue = -math.inf
+
+            value = -math.inf
             for action in legalActions : 
-                print("MAX: MINIMIZE THE GHOSTS")
-                value = min_ghost(gameState.generateSuccessor(0, action), depth, 1)
-                bestValue = max(bestValue, value)
-            return bestValue
+                value = max(value, min_ghost(gameState.generateSuccessor(0, action), depth, 1, alpha, beta))
+                if value > beta :
+                    break
+                alpha = max(alpha, value)
+            return value
 
         legalActions = gameState.getLegalActions(0)
         bestAction = None
         bestValue = -math.inf
+
+        alpha = -math.inf
+        beta = math.inf
+
         for action in legalActions :
-            value = min_ghost(gameState.generateSuccessor(0, action), self.depth, 1)
+            value = min_ghost(gameState.generateSuccessor(0, action), self.depth, 1, alpha, beta)
             if (value > bestValue) : 
                 bestValue = value
                 bestAction = action
+            if value > beta :
+                break
+            alpha = max(alpha, bestValue)
         return bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
@@ -291,6 +295,8 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
                 bestAction = action
         return bestAction
 
+
+
 def betterEvaluationFunction(currentGameState: GameState):
     """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
@@ -299,7 +305,42 @@ def betterEvaluationFunction(currentGameState: GameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    newPos = currentGameState.getPacmanPosition()
+    foodList = currentGameState.getFood()
+    ghostStates = currentGameState.getGhostStates()
+    pelletList = currentGameState.getCapsules()
+    
+    minFoodDist = math.inf
+    minGhostDist = math.inf
+    minPelletDist = math.inf
+    totalPelletDist = 0
+
+    totalFoodDist = 0
+    for food in foodList.asList() :
+        minFoodDist = min(minFoodDist, manhattanDistance(newPos, food))
+        totalFoodDist += manhattanDistance(newPos, food)
+    for ghost in ghostStates :
+        minGhostDist = min(minGhostDist, manhattanDistance(newPos, ghost.getPosition()))
+    for pellet in pelletList :
+        minPelletDist = min(minPelletDist, manhattanDistance(newPos, pellet))
+        totalPelletDist += minPelletDist
+    
+    heuristic_score = 0
+
+    # Penalties
+    # if minGhostDist > 3 and minFoodDist < 20 :
+    #     heuristic_score -= 5*minFoodDist
+    if len(pelletList) > 0 :
+        heuristic_score -= 200 / (minGhostDist + 100)
+    if minGhostDist < 3:
+        # incentivize being closer to all food and further from ghost
+        heuristic_score -= 1e5 
+    else:
+        # incentivize being further from ghost and eating more food
+        # heuristic_score += 100 - totalFoodDist + minGhostDist - len(foodList.asList())*10
+        heuristic_score += 100 - totalFoodDist + minGhostDist - len(foodList.asList())*10
+    
+    return heuristic_score 
 
 # Abbreviation
 better = betterEvaluationFunction

@@ -159,8 +159,11 @@ class MinimaxAgent(MultiAgentSearchAgent):
                     value = max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1)
                 else:
                     # Otherwise, move to the next ghost
+                    # print("move on to the next ghost")
                     value = min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1)
+                    print("     value for ghost", ghostID, value)
                 bestValue = min(bestValue, value)
+                
             return bestValue
 
         # maxvalue function called by pacman
@@ -170,6 +173,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             legalActions = gameState.getLegalActions(0)
             bestValue = -math.inf
             for action in legalActions : 
+                print("MAX: MINIMIZE THE GHOSTS")
                 value = min_ghost(gameState.generateSuccessor(0, action), depth, 1)
                 bestValue = max(bestValue, value)
             return bestValue
@@ -194,7 +198,46 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        
+         # minvalue function called by the ghosts
+        def min_ghost(gameState: GameState, depth, ghostID) : 
+            if (gameState.isWin() or gameState.isLose() or depth == 0) : 
+                return self.evaluationFunction(gameState)
+            legalActions = gameState.getLegalActions(ghostID)
+            bestValue = math.inf
+            for action in legalActions : 
+                if ghostID == gameState.getNumAgents() - 1:
+                    value = max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1)
+                else:
+                    # Otherwise, move to the next ghost
+                    # print("move on to the next ghost")
+                    value = min_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1)
+                    print("     value for ghost", ghostID, value)
+                bestValue = min(bestValue, value)
+                
+            return bestValue
+
+        # maxvalue function called by pacman
+        def max_pacman(gameState: GameState, depth) :
+            if (gameState.isWin() or gameState.isLose() or depth == 0) : 
+                return self.evaluationFunction(gameState)
+            legalActions = gameState.getLegalActions(0)
+            bestValue = -math.inf
+            for action in legalActions : 
+                print("MAX: MINIMIZE THE GHOSTS")
+                value = min_ghost(gameState.generateSuccessor(0, action), depth, 1)
+                bestValue = max(bestValue, value)
+            return bestValue
+
+        legalActions = gameState.getLegalActions(0)
+        bestAction = None
+        bestValue = -math.inf
+        for action in legalActions :
+            value = min_ghost(gameState.generateSuccessor(0, action), self.depth, 1)
+            if (value > bestValue) : 
+                bestValue = value
+                bestAction = action
+        return bestAction
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
@@ -209,7 +252,44 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # minvalue function called by the ghosts
+        def expected_ghost(gameState: GameState, depth, ghostID) : 
+            if (gameState.isWin() or gameState.isLose() or depth == 0) : 
+                return self.evaluationFunction(gameState)
+            legalActions = gameState.getLegalActions(ghostID)
+            expectedValue = 0        
+            for action in legalActions : 
+                if ghostID == gameState.getNumAgents() - 1:
+                    # only depth - 1 if the last ghost
+                    value = max_pacman(gameState.generateSuccessor(ghostID, action), depth - 1)
+                    expectedValue += value
+                else:
+                    # Otherwise, move to the next ghost
+                    value = expected_ghost(gameState.generateSuccessor(ghostID, action), depth, ghostID + 1)
+                    expectedValue += value
+            return expectedValue / len(legalActions)
+# `
+            
+        # maxvalue function called by pacman
+        def max_pacman(gameState: GameState, depth) :
+            if (gameState.isWin() or gameState.isLose() or depth == 0) : 
+                return self.evaluationFunction(gameState)
+            legalActions = gameState.getLegalActions(0)
+            bestValue = -math.inf
+            for action in legalActions : 
+                value = expected_ghost(gameState.generateSuccessor(0, action), depth, 1)
+                bestValue = max(bestValue, value)
+            return bestValue
+
+        legalActions = gameState.getLegalActions(0)
+        bestAction = None
+        bestValue = -math.inf
+        for action in legalActions :
+            value = expected_ghost(gameState.generateSuccessor(0, action), self.depth, 1)
+            if (value > bestValue) : 
+                bestValue = value
+                bestAction = action
+        return bestAction
 
 def betterEvaluationFunction(currentGameState: GameState):
     """
